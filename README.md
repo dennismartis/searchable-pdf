@@ -6,7 +6,7 @@ This project converts PDFs to searchable PDFs using OCR (Optical Character Recog
 ## Installation
 1. Clone the repository:
    ```sh
-   git clone https://github.com/yourusername/searchable-pdf.git
+   git clone https://github.com/dennismartis/searchable-pdf.git
    ```
 2. Navigate to the project directory:
    ```sh
