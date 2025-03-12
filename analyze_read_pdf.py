@@ -1,6 +1,6 @@
 from azure.core.credentials import AzureKeyCredential
 from azure.ai.documentintelligence import DocumentIntelligenceClient
-from azure.ai.documentintelligence.models import AnalyzeDocumentRequest
+from azure.ai.documentintelligence.models import DocumentAnalysisFeature
 import numpy as np
 import os
 import argparse
@@ -12,7 +12,7 @@ def format_bounding_box(bounding_box):
     reshaped_bounding_box = np.array(bounding_box).reshape(-1, 2)
     return ", ".join(["[{}, {}]".format(x, y) for x, y in reshaped_bounding_box])
 
-def analyze_read(file_path, endpoint, key, output_path):
+def analyze_read(file_path, endpoint, key, output_path, high_resolution=False):
     # Check if file exists
     if not os.path.isfile(file_path):
         print(f"Error: File '{file_path}' not found.")
@@ -24,9 +24,21 @@ def analyze_read(file_path, endpoint, key, output_path):
     
     # Open and read the local file
     with open(file_path, "rb") as f:
-        poller = document_intelligence_client.begin_analyze_document(
-            "prebuilt-read", body=f
-        )
+        # Define features list if high_resolution is enabled
+        features = []
+        if high_resolution:
+            features = [DocumentAnalysisFeature.OCR_HIGH_RESOLUTION]
+            print("High resolution OCR mode enabled")
+        
+        # Pass the features parameter if it's not empty
+        if features:
+            poller = document_intelligence_client.begin_analyze_document(
+                "prebuilt-read", body=f, features=features
+            )
+        else:
+            poller = document_intelligence_client.begin_analyze_document(
+                "prebuilt-read", body=f
+            )
     
     result = poller.result()
 
@@ -79,12 +91,12 @@ def analyze_read(file_path, endpoint, key, output_path):
                 )
             )
 
-    with open(os.path.join(output_path, "output.json"), "w") as json_file:
-        json.dump(output_data, json_file, indent=4)
+    with open(os.path.join(output_path, "output.json"), "w", encoding="utf-8") as json_file:
+        json.dump(output_data, json_file, indent=4, ensure_ascii=False)
 
     print("Output saved to output.json")
 
-    with open(os.path.join(output_path, "output.txt"), "w") as text_file:
+    with open(os.path.join(output_path, "output.txt"), "w", encoding="utf-8") as text_file:
         text_file.write("Document contains content: " + result.content + "\n")
         for page in result.pages:
             for line_idx, line in enumerate(page.lines):
@@ -101,6 +113,7 @@ if __name__ == "__main__":
     parser.add_argument("--endpoint", required=True, help="Azure Document Intelligence endpoint")
     parser.add_argument("--key", required=True, help="Azure Document Intelligence key")
     parser.add_argument("--path", help="Path to save the output files", default=".")
+    parser.add_argument("--high-res", action="store_true", help="Enable high resolution OCR mode for large documents")
     args = parser.parse_args()
     
-    analyze_read(args.file_path, args.endpoint, args.key, args.path)
+    analyze_read(args.file_path, args.endpoint, args.key, args.path, args.high_res)
